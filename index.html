@@ -3,89 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Your Password - School Axis</title>
+    <title>Reset Password - School Axis</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f7fe; margin: 0; padding: 20px; box-sizing: border-box; }
-        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        h2 { color: #4F46E5; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #4F46E5; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); width: 100%; max-width: 380px; text-align: center; }
+        h2 { color: #1a73e8; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #dadce0; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; }
         button:disabled { background: #ccc; }
-        #status { margin-top: 15px; font-weight: bold; }
+        #status { margin-top: 20px; font-size: 14px; min-height: 20px; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>New Password</h2>
-        <p>Enter your new password below.</p>
-        <input type="password" id="pass" placeholder="New Password (min 6 chars)">
-        <button id="btn">Update Password</button>
+        <h2>Set New Password</h2>
+        <input type="password" id="new_pass" placeholder="New Password (min 6 chars)">
+        <button id="submit_btn">Update Password</button>
         <div id="status"></div>
     </div>
 
     <script>
-        // Use the exact details from your SupabaseApiHelper.java
-        const URL = 'https://zscymhwpiioxxmlwwbyp.supabase.co';
-        const KEY = 'sb_publishable_StGst_IaBa5VPYyHi4c81g_X1TLKvmH';
+        // 1. PROJECT DETAILS (Updated to be more robust)
+        const PROJECT_URL = 'https://zscymhwpiioxxmlwwbyp.supabase.co'.trim();
+        const ANON_KEY = 'sb_publishable_StGst_IaBa5VPYyHi4c81g_X1TLKvmH'.trim();
 
-        let sbClient;
+        let supabaseClient;
+        const statusDiv = document.getElementById('status');
+        const btn = document.getElementById('submit_btn');
+
         try {
-            // Initialize the client using the global 'supabase' object from the CDN
-            sbClient = supabase.createClient(URL, KEY);
-            console.log("Supabase initialized");
-        } catch (e) {
-            alert("Initialization Error: " + e.message);
+            // Initialize
+            supabaseClient = supabase.createClient(PROJECT_URL, ANON_KEY);
+            statusDiv.innerText = "Connecting to Supabase...";
+        } catch (err) {
+            statusDiv.innerText = "Setup Error: " + err.message;
+            statusDiv.style.color = "red";
         }
 
-        const btn = document.getElementById('btn');
-        const passInput = document.getElementById('pass');
-        const status = document.getElementById('status');
+        // 2. CHECK SESSION ON LOAD
+        window.onload = async () => {
+            try {
+                const { data, error } = await supabaseClient.auth.getSession();
+                if (error || !data.session) {
+                    statusDiv.innerText = "No active session. Please request a new link from the app.";
+                    statusDiv.style.color = "orange";
+                    btn.disabled = true;
+                } else {
+                    statusDiv.innerText = "Ready to update password.";
+                    statusDiv.style.color = "green";
+                }
+            } catch (e) {
+                statusDiv.innerText = "Session check failed.";
+            }
+        };
 
-        btn.addEventListener('click', async () => {
-            const newPassword = passInput.value;
+        // 3. HANDLE UPDATE
+        btn.onclick = async () => {
+            const pass = document.getElementById('new_pass').value;
 
-            if (newPassword.length < 6) {
-                alert("Password too short!");
+            if (pass.length < 6) {
+                alert("Password must be at least 6 characters!");
                 return;
             }
 
             btn.disabled = true;
-            btn.innerText = "Processing...";
-            status.innerText = "Updating...";
+            btn.innerText = "Updating...";
+            statusDiv.innerText = "Sending request...";
 
             try {
-                // This sends the new password to Supabase
-                const { data, error } = await sbClient.auth.updateUser({ password: newPassword });
+                const { error } = await supabaseClient.auth.updateUser({ password: pass });
 
                 if (error) {
-                    alert("Update Failed: " + error.message);
-                    status.innerText = "Error: " + error.message;
-                    status.style.color = "red";
+                    alert("Update Error: " + error.message);
+                    statusDiv.innerText = error.message;
+                    statusDiv.style.color = "red";
                     btn.disabled = false;
                     btn.innerText = "Update Password";
                 } else {
-                    alert("SUCCESS! Password changed. You can now log in to the app.");
-                    status.innerText = "Password Updated!";
-                    status.style.color = "green";
-                    btn.innerText = "Success";
+                    alert("SUCCESS! Your password has been changed.");
+                    statusDiv.innerText = "Successfully updated! You can now log in to the app.";
+                    statusDiv.style.color = "green";
+                    btn.innerText = "Done";
                 }
             } catch (err) {
-                alert("Critical Error: " + err.message);
+                alert("Unexpected Error: " + err.message);
                 btn.disabled = false;
                 btn.innerText = "Update Password";
-            }
-        });
-
-        // Verify we have a session from the email link
-        window.onload = async () => {
-            const { data } = await sbClient.auth.getSession();
-            if (!data.session) {
-                status.innerText = "Warning: No reset session. Did you click the link from your email?";
-                status.style.color = "orange";
-            } else {
-                status.innerText = "Ready to reset password.";
-                status.style.color = "blue";
             }
         };
     </script>
