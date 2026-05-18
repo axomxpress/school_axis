@@ -4,58 +4,87 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Your Password - School Axis</title>
+    <!-- Use the correct Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f7fe; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
-        h2 { color: #4F46E5; margin-top: 0; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #4F46E5; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #a5a2e0; }
-        #message { margin-top: 15px; font-size: 14px; text-align: center; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f4f7fe; margin: 0; }
+        .card { background: white; padding: 2.5rem; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #4F46E5; margin-bottom: 0.5rem; }
+        p { color: #64748b; font-size: 0.95rem; margin-bottom: 1.5rem; }
+        input { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        input:focus { outline: none; border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        button { width: 100%; padding: 14px; background: #4F46E5; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s; margin-top: 10px; }
+        button:hover { background: #4338ca; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        #message { margin-top: 20px; font-size: 14px; padding: 10px; border-radius: 6px; display: none; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>New Password</h2>
-        <p>Enter a new password for your School Axis account.</p>
+        <p>Set a secure password for your account.</p>
         <input type="password" id="new-password" placeholder="New Password (min 6 chars)">
         <button id="reset-btn">Update Password</button>
         <div id="message"></div>
     </div>
 
     <script>
-        // Your Supabase Project Details
+        // 1. Initialize Supabase correctly
         const SUPABASE_URL = 'https://zscymhwpiioxxmlwwbyp.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_StGst_IaBa5VPYyHi4c81g_X1TLKvmH';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Use a different name for the client to avoid conflicts
+        const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const btn = document.getElementById('reset-btn');
         const msg = document.getElementById('message');
 
+        function showMessage(text, isError) {
+            msg.innerText = text;
+            msg.style.display = 'block';
+            msg.style.backgroundColor = isError ? '#fee2e2' : '#f0fdf4';
+            msg.style.color = isError ? '#991b1b' : '#166534';
+        }
+
         btn.addEventListener('click', async () => {
             const password = document.getElementById('new-password').value;
+            
             if (password.length < 6) {
-                msg.innerText = "Password must be at least 6 characters.";
-                msg.style.color = "red";
+                showMessage("Password must be at least 6 characters.", true);
                 return;
             }
 
             btn.disabled = true;
-            msg.innerText = "Updating...";
+            btn.innerText = "Updating...";
 
-            const { error } = await supabase.auth.updateUser({ password: password });
+            try {
+                // 2. Update the user password
+                const { data, error } = await client.auth.updateUser({ password: password });
 
-            if (error) {
-                msg.innerText = "Error: " + error.message;
-                msg.style.color = "red";
+                if (error) {
+                    showMessage("Error: " + error.message, true);
+                    btn.disabled = false;
+                    btn.innerText = "Update Password";
+                } else {
+                    showMessage("Password updated successfully! You can now log in to the app.", false);
+                    btn.innerText = "Done!";
+                    document.getElementById('new-password').disabled = true;
+                }
+            } catch (err) {
+                showMessage("An unexpected error occurred: " + err.message, true);
                 btn.disabled = false;
-            } else {
-                msg.innerText = "Password updated successfully! You can now log in to the app.";
-                msg.style.color = "green";
-                btn.innerText = "Done";
+                btn.innerText = "Update Password";
             }
         });
+
+        // 3. Check if we actually have a session (token in URL)
+        window.onload = async () => {
+            const { data: { session } } = await client.auth.getSession();
+            if (!session) {
+                showMessage("Security Warning: No active reset session found. Please request a new reset link from the app.", true);
+                btn.disabled = true;
+            }
+        };
     </script>
 </body>
 </html>
